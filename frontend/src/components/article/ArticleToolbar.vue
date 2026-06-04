@@ -12,6 +12,7 @@ import {
   PhStar,
   PhClockCountdown,
   PhArrowSquareOut,
+  PhLinkSimple,
   PhTranslate,
 } from '@phosphor-icons/vue';
 import type { Article } from '@/types/models';
@@ -46,6 +47,7 @@ defineEmits<{
   toggleFavorite: [];
   toggleReadLater: [];
   openOriginal: [];
+  copyLink: [];
   toggleTranslations: [];
   exportToObsidian: [];
   exportToNotion: [];
@@ -143,6 +145,13 @@ defineEmits<{
           class="sm:w-5 sm:h-5"
           :weight="article.is_read_later ? 'fill' : 'regular'"
         />
+      </button>
+      <button
+        class="action-btn"
+        :title="t('article.action.copyOriginalLink')"
+        @click="$emit('copyLink')"
+      >
+        <PhLinkSimple :size="18" class="sm:w-5 sm:h-5" />
       </button>
       <button
         class="action-btn"

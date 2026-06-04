@@ -2,6 +2,8 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useAppStore } from '@/stores/app';
 import { useI18n } from 'vue-i18n';
 import { openInBrowser } from '@/utils/browser';
+import { copyArticleLink } from '@/utils/clipboard';
+import { enableImageDragOut, getOriginalImageUrl } from '@/utils/imageDragOut';
 import type { Article } from '@/types/models';
 import { proxyImagesInHtml, isMediaCacheEnabled } from '@/utils/mediaProxy';
 
@@ -240,6 +242,17 @@ export function useArticleDetail() {
     if (article.value) openInBrowser(article.value.url);
   }
 
+  // Copy the original article source URL to clipboard
+  async function copyLink() {
+    if (!article.value?.url) return;
+    const success = await copyArticleLink(article.value.url);
+    if (success) {
+      window.showToast(t('common.toast.copiedToClipboard'), 'success');
+    } else {
+      window.showToast(t('common.errors.failedToCopy'), 'error');
+    }
+  }
+
   async function toggleContentView() {
     if (!showContent.value) {
       // Switching to content view - fetch content if needed
@@ -394,6 +407,9 @@ export function useArticleDetail() {
           // Ensure cloned image maintains pointer interaction styles
           newImg.style.cursor = 'pointer';
           newImg.style.pointerEvents = 'auto';
+
+          // Enable dragging the image out of the app to save it locally
+          enableImageDragOut(newImg);
 
           // Left click - open image viewer with all images from article
           newImg.addEventListener(
@@ -641,9 +657,11 @@ export function useArticleDetail() {
       const blob = await response.blob();
 
       // Extract and sanitize filename from URL
+      // Use the original (pre-proxy) URL so proxied images get a real
+      // filename instead of "proxy"
       let filename = 'image';
       try {
-        const url = new URL(src);
+        const url = new URL(getOriginalImageUrl(src));
         const pathname = url.pathname;
         const pathSegments = pathname.split('/').filter((segment) => segment.length > 0);
         if (pathSegments.length > 0) {
@@ -892,6 +910,7 @@ export function useArticleDetail() {
     toggleFavorite,
     toggleReadLater,
     openOriginal,
+    copyLink,
     toggleContentView,
     closeImageViewer,
     copyImage,

@@ -156,6 +156,14 @@ func migrateUniqueIDOnArticles(db *sql.DB) error {
 		log.Printf("Warning: Failed to migrate unique_id: %v", err)
 	}
 
+	// Ensure a UNIQUE index exists on unique_id. Newer schemas declare the
+	// column as UNIQUE, but very old databases migrated via ALTER TABLE may
+	// lack the constraint (SQLite cannot add UNIQUE via ADD COLUMN). The
+	// article upsert (ON CONFLICT(unique_id) DO UPDATE) requires it.
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_unique_id ON articles(unique_id)`); err != nil {
+		log.Printf("Warning: Failed to create unique index on articles.unique_id: %v", err)
+	}
+
 	// Backfill published_at for articles that have NULL values
 	// Set to current time as fallback (article creation time is unknown)
 	result, err := db.Exec(`

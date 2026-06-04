@@ -51,7 +51,40 @@ func (db *DB) SaveArticles(ctx context.Context, articles []*models.Article) erro
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.PrepareContext(ctx, `INSERT OR REPLACE INTO articles (feed_id, title, url, image_url, audio_url, video_url, published_at, translated_title, is_read, is_favorite, is_hidden, is_read_later, summary, unique_id, author) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	// Use UPSERT (ON CONFLICT DO UPDATE) instead of INSERT OR REPLACE.
+	//
+	// INSERT OR REPLACE deletes the conflicting row and re-inserts it, which
+	// assigns a NEW article id on every refresh. The frontend keeps article
+	// ids in memory, so the id churn caused "sql: no rows in result set"
+	// errors (failed summaries, empty article content) for any article that
+	// was open while a background refresh ran - only an app restart helped.
+	//
+	// With ON CONFLICT DO UPDATE the row id stays stable. Read/favorite/
+	// hidden/read-later status is preserved automatically (those columns are
+	// simply not updated), and cached summaries/translations are only
+	// overwritten when the incoming feed actually provides new values.
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO articles (feed_id, title, url, image_url, audio_url, video_url, published_at, translated_title, is_read, is_favorite, is_hidden, is_read_later, summary, unique_id, author)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(unique_id) DO UPDATE SET
+			feed_id = excluded.feed_id,
+			title = excluded.title,
+			url = excluded.url,
+			image_url = excluded.image_url,
+			audio_url = excluded.audio_url,
+			video_url = excluded.video_url,
+			published_at = excluded.published_at,
+			author = excluded.author,
+			translated_title = CASE
+				WHEN excluded.translated_title IS NOT NULL AND excluded.translated_title != ''
+					THEN excluded.translated_title
+				ELSE articles.translated_title
+			END,
+			summary = CASE
+				WHEN excluded.summary IS NOT NULL AND excluded.summary != ''
+					THEN excluded.summary
+				ELSE articles.summary
+			END`)
 	if err != nil {
 		return err
 	}
@@ -68,23 +101,7 @@ func (db *DB) SaveArticles(ctx context.Context, articles []*models.Article) erro
 		// Generate unique_id for deduplication
 		uniqueID := urlutil.GenerateArticleUniqueID(article.Title, article.FeedID, article.PublishedAt, article.HasValidPublishedTime)
 
-		// For INSERT OR REPLACE, we need to preserve existing status fields
-		// Check if article exists to preserve its status
-		var existingIsRead, existingIsFavorite, existingIsHidden, existingIsReadLater int
-		err := tx.QueryRowContext(ctx, "SELECT is_read, is_favorite, is_hidden, is_read_later FROM articles WHERE unique_id = ?", uniqueID).Scan(&existingIsRead, &existingIsFavorite, &existingIsHidden, &existingIsReadLater)
-		isRead := article.IsRead
-		isFavorite := article.IsFavorite
-		isHidden := article.IsHidden
-		isReadLater := article.IsReadLater
-		if err == nil {
-			// Article exists, preserve its status
-			isRead = existingIsRead == 1
-			isFavorite = existingIsFavorite == 1
-			isHidden = existingIsHidden == 1
-			isReadLater = existingIsReadLater == 1
-		}
-
-		_, err = stmt.ExecContext(ctx, article.FeedID, article.Title, article.URL, article.ImageURL, article.AudioURL, article.VideoURL, article.PublishedAt, article.TranslatedTitle, isRead, isFavorite, isHidden, isReadLater, article.Summary, uniqueID, article.Author)
+		_, err = stmt.ExecContext(ctx, article.FeedID, article.Title, article.URL, article.ImageURL, article.AudioURL, article.VideoURL, article.PublishedAt, article.TranslatedTitle, article.IsRead, article.IsFavorite, article.IsHidden, article.IsReadLater, article.Summary, uniqueID, article.Author)
 		if err != nil {
 			log.Println("Error saving article in batch:", err)
 			// Continue even if one fails

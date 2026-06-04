@@ -1,7 +1,9 @@
 package summary
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
@@ -76,6 +78,17 @@ func HandleSummarizeArticle(h *core.Handler, w http.ResponseWriter, r *http.Requ
 	content, err := getArticleContent(h, req.ArticleID, req.Content)
 	if err != nil {
 		log.Printf("Error getting article content for summary: %v", err)
+		// The article (or its content) may have been removed by the automatic
+		// cache cleanup. Return a friendly, actionable message instead of a
+		// raw SQL error.
+		if errors.Is(err, sql.ErrNoRows) {
+			response.JSON(w, map[string]interface{}{
+				"summary":      "",
+				"is_too_short": true,
+				"error":        "Article content was removed by cache cleanup. Refresh the feed and try again, or increase the max cache size in Settings > Storage.",
+			})
+			return
+		}
 		response.Error(w, err, http.StatusInternalServerError)
 		return
 	}

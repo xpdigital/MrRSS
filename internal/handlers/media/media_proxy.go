@@ -8,6 +8,7 @@ import (
 	"html"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -22,6 +23,56 @@ import (
 	"MrRSS/internal/utils/fileutil"
 	"MrRSS/internal/utils/httputil"
 )
+
+// invalidFilenameChars matches characters that are not safe in filenames
+var invalidFilenameChars = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
+
+// mediaContentDisposition builds an inline Content-Disposition header value with a
+// sanitized filename derived from the original media URL. This gives dragged-out
+// and downloaded images a meaningful filename (e.g. "photo.jpg") instead of the
+// proxy endpoint name ("proxy").
+func mediaContentDisposition(mediaURL, contentType string) string {
+	filename := "image"
+
+	if u, err := url.Parse(mediaURL); err == nil {
+		base := filepath.Base(u.Path)
+		if base != "." && base != "/" && base != "" {
+			filename = base
+		}
+	}
+
+	// Sanitize: strip query leftovers and unsafe characters
+	filename = strings.SplitN(filename, "?", 2)[0]
+	filename = invalidFilenameChars.ReplaceAllString(filename, "_")
+	filename = strings.Trim(filename, "._")
+	if filename == "" {
+		filename = "image"
+	}
+
+	// Ensure the filename has an extension matching the content type
+	if filepath.Ext(filename) == "" {
+		// Strip parameters like "; charset=utf-8" before lookup
+		baseType := strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0])
+		switch baseType {
+		case "image/jpeg":
+			filename += ".jpg"
+		case "image/png":
+			filename += ".png"
+		case "image/gif":
+			filename += ".gif"
+		case "image/webp":
+			filename += ".webp"
+		case "image/svg+xml":
+			filename += ".svg"
+		default:
+			if exts, _ := mime.ExtensionsByType(baseType); len(exts) > 0 {
+				filename += exts[0]
+			}
+		}
+	}
+
+	return fmt.Sprintf(`inline; filename="%s"`, filename)
+}
 
 // validateMediaURL validates that the URL is HTTP/HTTPS and properly formatted
 func validateMediaURL(urlStr string) error {
@@ -245,6 +296,7 @@ func HandleMediaProxy(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", contentType)
 					w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 					w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
+					w.Header().Set("Content-Disposition", mediaContentDisposition(mediaURL, contentType))
 					w.Header().Set("X-Media-Source", "cache")
 					w.Write(data)
 					return
@@ -1792,6 +1844,7 @@ func proxyMediaDirectly(mediaURL, referer string, w http.ResponseWriter) error {
 	// Set response headers
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache for 1 hour
+	w.Header().Set("Content-Disposition", mediaContentDisposition(mediaURL, contentType))
 	w.Header().Set("X-Media-Source", "direct-proxy")
 
 	// Stream the response directly to avoid loading large files into memory

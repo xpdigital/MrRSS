@@ -24,6 +24,7 @@ const {
   toggleFavorite,
   toggleReadLater,
   openOriginal,
+  copyLink,
   toggleContentView,
   closeImageViewer,
   attachImageEventListeners,
@@ -104,6 +105,7 @@ onBeforeUnmount(() => {
         @toggle-favorite="toggleFavorite"
         @toggle-read-later="toggleReadLater"
         @open-original="openOriginal"
+        @copy-link="copyLink"
         @toggle-translations="toggleTranslations"
         @export-to-obsidian="exportToObsidian"
         @export-to-notion="exportToNotion"

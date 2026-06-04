@@ -9,6 +9,8 @@ import ImageViewer from '../common/ImageViewer.vue';
 import FindInPage from '../common/FindInPage.vue';
 import type { Article } from '@/types/models';
 import { openInBrowser } from '@/utils/browser';
+import { copyArticleLink } from '@/utils/clipboard';
+import { enableImageDragOut } from '@/utils/imageDragOut';
 import { useSettings } from '@/composables/core/useSettings';
 
 interface Props {
@@ -242,6 +244,17 @@ function openOriginal() {
   }
 }
 
+// Copy the original article source URL to clipboard
+async function copyLink() {
+  if (!props.article?.url) return;
+  const success = await copyArticleLink(props.article.url);
+  if (success) {
+    window.showToast(t('common.toast.copiedToClipboard'), 'success');
+  } else {
+    window.showToast(t('common.errors.failedToCopy'), 'error');
+  }
+}
+
 function closeImageViewer() {
   imageViewerSrc.value = null;
   imageViewerAlt.value = '';
@@ -267,6 +280,8 @@ function attachImageEventListeners() {
 
     images.forEach((img, index) => {
       img.style.cursor = 'pointer';
+      // Enable dragging the image out of the app to save it locally
+      enableImageDragOut(img);
       img.addEventListener('click', () => {
         const src = img.getAttribute('src');
         if (src) {
@@ -308,6 +323,7 @@ function handleOverlayClick(e: MouseEvent) {
           @toggle-favorite="emit('toggleFavorite')"
           @toggle-read-later="emit('toggleReadLater')"
           @open-original="openOriginal"
+          @copy-link="copyLink"
           @toggle-translations="toggleTranslations"
           @export-to-obsidian="exportToObsidian"
           @export-to-notion="exportToNotion"

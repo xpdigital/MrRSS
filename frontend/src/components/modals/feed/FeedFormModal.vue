@@ -212,22 +212,31 @@ async function submit() {
         return;
       }
 
+      // Try to extract a human-readable message from the JSON error body
+      // (backend responds with {"success":false,"error":{"code":...,"message":...}})
+      let errorMessage = errorText;
+      try {
+        const parsed = JSON.parse(errorText);
+        errorMessage = parsed?.error?.message || errorText;
+      } catch {
+        // Body is not JSON, use raw text as-is
+      }
+
+      const errorKey =
+        props.mode === 'add' ? 'modal.feed.errorAddingFeed' : 'modal.feed.errorUpdatingFeed';
+
       // Check if it's an XPath error for better display
       if (feedType.value === 'xpath' && errorText.includes('XPath')) {
-        // For XPath errors, show a more detailed toast
-        const errorKey = props.mode === 'add' ? 'errorAddingFeed' : 'errorUpdatingFeed';
-        const title = t(errorKey);
-        let formattedMessage = `${title}:\n${errorText}`;
-
-        window.showToast(formattedMessage, 'error', 8000); // Show for 8 seconds for XPath errors
+        // For XPath errors, show a more detailed toast for 8 seconds
+        window.showToast(`${t(errorKey)} (HTTP ${res.status}):\n${errorMessage}`, 'error', 8000);
       } else {
         // For other errors, show the standard format
-        const errorKey = props.mode === 'add' ? 'errorAddingFeed' : 'errorUpdatingFeed';
-        window.showToast(`${t(errorKey)}: ${errorText}`, 'error');
+        window.showToast(`${t(errorKey)} (HTTP ${res.status}): ${errorMessage}`, 'error');
       }
     }
   } catch {
-    const errorKey = props.mode === 'add' ? 'errorAddingFeed' : 'errorUpdatingFeed';
+    const errorKey =
+      props.mode === 'add' ? 'modal.feed.errorAddingFeed' : 'modal.feed.errorUpdatingFeed';
     window.showToast(t(errorKey), 'error');
   } finally {
     isSubmitting.value = false;
