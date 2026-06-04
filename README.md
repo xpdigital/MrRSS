@@ -14,6 +14,20 @@
 [![Wails](https://img.shields.io/badge/Wails-v3%20alpha-red)](https://wails.io/)
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.5+-4FC08D?logo=vue.js)](https://vuejs.org/)
 
+> [!NOTE]
+> **This is a modified fork** of [WCY-dt/MrRSS](https://github.com/WCY-dt/MrRSS), maintained at [xpdigital/MrRSS](https://github.com/xpdigital/MrRSS) and licensed under the same GPL-3.0 license.
+>
+> **Modifications (2026-06-04):**
+>
+> - ✨ **Drag images out to save**: drag any image in the article view directly to Finder / File Explorer to save it locally
+> - ✨ **Copy original link button**: one-click copy of the article's source URL from the article toolbar
+> - 🐛 Fixed article ids changing on every refresh (`INSERT OR REPLACE` → upsert), which caused "no content" / summary errors until restart; cached AI summaries and translations now survive refreshes
+> - 🐛 Fixed feed-add error toasts showing raw i18n keys / empty messages; now shows the HTTP status and actual error
+> - 🐛 Friendly message instead of a raw SQL error when article content was removed by cache cleanup
+> - 🐛 Proxied images now download with their real filenames instead of `proxy.*`
+>
+> See the [commit history](https://github.com/xpdigital/MrRSS/commits/main) for full details.
+
 ## ✨ Features
 
 - 🌐 **Auto-Translation & Summarization**: Automatically translate article titles and content, and generate concise summaries to help you get information quickly

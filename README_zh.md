@@ -14,6 +14,20 @@
 [![Wails](https://img.shields.io/badge/Wails-v3%20alpha-red)](https://wails.io/)
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.5+-4FC08D?logo=vue.js)](https://vuejs.org/)
 
+> [!NOTE]
+> **本仓库是 [WCY-dt/MrRSS](https://github.com/WCY-dt/MrRSS) 的修改版（fork）**，维护于 [xpdigital/MrRSS](https://github.com/xpdigital/MrRSS)，沿用相同的 GPL-3.0 协议。
+>
+> **修改内容（2026-06-04）：**
+>
+> - ✨ **图片拖出保存**：在文章视图中按住图片可直接拖到 Finder / 文件管理器保存到本地
+> - ✨ **一键复制原文链接**：文章工具栏新增按钮，单击复制文章来源网址
+> - 🐛 修复每次刷新后文章 ID 变化（`INSERT OR REPLACE` → upsert）导致的"暂无内容"、摘要报错需重启的问题；AI 摘要与标题翻译缓存不再被刷新清空
+> - 🐛 修复添加订阅失败时报错显示原始 i18n key / 空信息的问题，现在会显示 HTTP 状态码和真实错误
+> - 🐛 文章内容被缓存清理删除时给出友好提示，不再抛出原始 SQL 错误
+> - 🐛 修复代理图片下载文件名变成 `proxy.*` 的问题
+>
+> 完整改动见[提交历史](https://github.com/xpdigital/MrRSS/commits/main)。
+
 ## ✨ 功能特性
 
 - 🌐 **自动翻译与摘要**: 自动翻译文章标题与正文，并生成简洁的内容摘要，助你快速获取信息
