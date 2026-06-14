@@ -213,6 +213,19 @@ onMounted(async () => {
   }, 100);
 });
 
+// When the app goes to the background (window loses focus or the OS hides the
+// window), flush any article-list update that an auto-refresh deferred while
+// the user was reading. This way the list is already up to date the next time
+// the user switches back to MrRSS, without ever shifting under them mid-read.
+window.addEventListener('blur', () => {
+  store.flushPendingListRefresh();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    store.flushPendingListRefresh();
+  }
+});
+
 // Listen for events from Sidebar (moved outside onMounted to ensure proper capture)
 window.addEventListener('show-add-feed', () => {
   showAddFeed.value = true;

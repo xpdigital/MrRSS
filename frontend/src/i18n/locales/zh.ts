@@ -27,6 +27,7 @@ const zh: TranslationMessages = {
       markBelowAsRead: '将以下标记为已读',
       markedAllAsRead: '所有文章已标记为已读',
       markedNArticlesAsRead: '已标记 {count} 篇文章为已读',
+      newArticles: '{count} 篇新文章',
       noArticlesToMark: '没有可标记的文章',
       openArticle: '打开文章',
       openInBrowser: '在浏览器中打开',

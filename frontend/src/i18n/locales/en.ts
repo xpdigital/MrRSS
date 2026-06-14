@@ -29,6 +29,7 @@ const en: TranslationMessages = {
       markBelowAsRead: 'Mark Below as Read',
       markedAllAsRead: 'All articles marked as read',
       markedNArticlesAsRead: 'Marked {count} articles as read',
+      newArticles: '{count} new articles',
       noArticlesToMark: 'No articles to mark',
       openArticle: 'Open Article',
       openInBrowser: 'Open in Browser',

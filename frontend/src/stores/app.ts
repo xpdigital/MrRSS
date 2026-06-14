@@ -30,6 +30,8 @@ export interface AppState {
   themePreference: Ref<ThemePreference>;
   theme: Ref<Theme>;
   refreshProgress: Ref<RefreshProgress>;
+  pendingListRefresh: Ref<boolean>;
+  newArticlesCount: Ref<number>;
   showOnlyUnread: Ref<boolean>;
   activeFilters: Ref<FilterCondition[]>;
   filteredArticlesFromServer: Ref<Article[]>;
@@ -54,6 +56,7 @@ export interface AppActions {
   pollProgress: () => void;
   checkForAppUpdates: () => Promise<void>;
   startAutoRefresh: (minutes: number) => void;
+  flushPendingListRefresh: () => void;
   toggleShowOnlyUnread: () => void;
   setActiveFilters: (filters: FilterCondition[]) => void;
 }
@@ -106,6 +109,20 @@ export const useAppStore = defineStore('app', () => {
   // Refresh progress
   const refreshProgress = ref<RefreshProgress>({ isRunning: false });
   let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
+  // True while an automatic (timer-triggered) refresh is in progress.
+  const isAutoRefreshing = ref(false);
+
+  // Set when an automatic refresh has fetched new data but we have deliberately
+  // NOT yet rebuilt the visible article list, to avoid disrupting the user while
+  // they read. The pending update is flushed either when the user clicks the
+  // "N new articles" banner, or when the app goes to the background (window
+  // blur / tab hidden) — see flushPendingListRefresh().
+  const pendingListRefresh = ref(false);
+
+  // Number of newly-arrived articles for the current view not yet shown in the
+  // visible list. Drives the "N new articles" banner at the top of the list.
+  const newArticlesCount = ref(0);
 
   // Actions - Article Management
   async function setFilter(filter: Filter): Promise<void> {
@@ -214,6 +231,49 @@ export const useAppStore = defineStore('app', () => {
       page.value++;
       await fetchArticles(true);
     }
+  }
+
+  // Called when a background refresh has new data. If the app is currently in
+  // the foreground we defer rebuilding the visible list (just mark it pending)
+  // so the user is not disrupted mid-read. If the app is already in the
+  // background we can rebuild immediately. Either way fetchUnreadCounts() still
+  // runs elsewhere so the sidebar badges stay live.
+  async function scheduleBackgroundListRefresh(): Promise<void> {
+    pendingListRefresh.value = true;
+
+    // Count how many newly-arrived articles aren't in the visible list yet,
+    // to drive the "N new articles" banner. Uses the current view's filters.
+    try {
+      let url = `/api/articles?page=1&limit=50`;
+      if (currentFilter.value) url += `&filter=${currentFilter.value}`;
+      if (currentFeedId.value) url += `&feed_id=${currentFeedId.value}`;
+      if (currentCategory.value !== null)
+        url += `&category=${encodeURIComponent(currentCategory.value)}`;
+
+      const res = await fetch(url);
+      const latest: Article[] = (await res.json()) || [];
+      const existingIds = new Set(articles.value.map((a) => a.id));
+      newArticlesCount.value = latest.filter((a) => !existingIds.has(a.id)).length;
+    } catch {
+      // If counting fails, still allow a refresh — just without a number
+      newArticlesCount.value = 0;
+    }
+
+    // If the app is already hidden/unfocused, flush right away.
+    if (typeof document !== 'undefined' && document.hidden) {
+      flushPendingListRefresh();
+    }
+  }
+
+  // Rebuild the visible article list from the latest data. Called when the user
+  // clicks the "N new articles" banner, or when the app goes to the background
+  // (window blur / tab hidden). Resetting the scroll position is fine in both
+  // cases — the user has either asked for it or navigated away.
+  function flushPendingListRefresh(): void {
+    if (!pendingListRefresh.value) return;
+    pendingListRefresh.value = false;
+    newArticlesCount.value = 0;
+    fetchArticles();
   }
 
   async function fetchFeeds(): Promise<void> {
@@ -432,7 +492,14 @@ export const useAppStore = defineStore('app', () => {
 
         // Still refresh feeds and articles to get any updates from FreshRSS sync
         fetchFeeds();
-        fetchArticles();
+        if (isAutoRefreshing.value) {
+          // Auto refresh: defer the visible list update until the app goes to
+          // the background, so the user is not disrupted while reading.
+          scheduleBackgroundListRefresh();
+          isAutoRefreshing.value = false;
+        } else {
+          fetchArticles();
+        }
         fetchUnreadCounts();
 
         // Notify components that settings have been updated
@@ -519,7 +586,14 @@ export const useAppStore = defineStore('app', () => {
         if (!data.is_running) {
           clearInterval(interval);
           fetchFeeds();
-          fetchArticles();
+          if (isAutoRefreshing.value) {
+            // Auto refresh: defer the visible list update until the app is in
+            // the background so the user's reading isn't interrupted.
+            scheduleBackgroundListRefresh();
+            isAutoRefreshing.value = false;
+          } else {
+            fetchArticles();
+          }
           fetchUnreadCounts();
 
           // Notify components that settings have been updated (e.g., last_article_update)
@@ -585,9 +659,10 @@ export const useAppStore = defineStore('app', () => {
           data.last_sync_time !== lastKnownFreshRSSSyncTime
         ) {
           console.log('[FreshRSS] Sync completed detected, refreshing data...');
-          // Refresh all data
+          // Background sync: defer the visible list update until the app goes
+          // to the background instead of resetting the list mid-read.
           await fetchFeeds();
-          await fetchArticles();
+          scheduleBackgroundListRefresh();
           await fetchUnreadCounts();
         }
 
@@ -692,6 +767,9 @@ export const useAppStore = defineStore('app', () => {
     if (minutes > 0) {
       refreshInterval = setInterval(
         () => {
+          // Mark this as an automatic refresh so the list updates silently
+          // (no scroll-to-top, no list clearing).
+          isAutoRefreshing.value = true;
           refreshFeeds();
         },
         minutes * 60 * 1000
@@ -781,6 +859,9 @@ export const useAppStore = defineStore('app', () => {
     stopFreshRSSStatusPolling,
     checkForAppUpdates,
     startAutoRefresh,
+    pendingListRefresh,
+    newArticlesCount,
+    flushPendingListRefresh,
     toggleShowOnlyUnread,
     setActiveFilters,
     setFilteredArticlesFromServer,

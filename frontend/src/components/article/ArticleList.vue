@@ -14,6 +14,7 @@ import {
   PhCircle,
   PhClock,
   PhLightning,
+  PhArrowUp,
 } from '@phosphor-icons/vue';
 import ArticleFilterModal from '../modals/filter/ArticleFilterModal.vue';
 import ArticleItem from './ArticleItem.vue';
@@ -468,6 +469,13 @@ function handleScroll(e: Event): void {
     const target = e.target as HTMLElement;
     const { scrollTop, clientHeight, scrollHeight } = target;
 
+    // Scrolled back to the very top: if a background refresh queued new
+    // articles, load them now (Reeder-style pull-to-top refresh).
+    if (scrollTop <= 4 && store.pendingListRefresh && store.newArticlesCount > 0) {
+      loadNewArticles();
+      return;
+    }
+
     // Check if scrolled to bottom (within small threshold)
     const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
     hasScrolledToBottom.value = isAtBottom;
@@ -494,6 +502,17 @@ async function handleApplyFilters(filters: typeof activeFilters.value): Promise<
   } else {
     shouldRestoreScroll.value = false; // Don't restore scroll when applying filters
     await fetchFilteredArticles(filters, false);
+  }
+}
+
+// Load the new articles that a background auto-refresh deferred, then scroll
+// the list back to the top so the user sees them. Triggered by clicking the
+// "N new articles" banner or by scrolling to the very top of the list.
+async function loadNewArticles(): Promise<void> {
+  store.flushPendingListRefresh();
+  await nextTick();
+  if (listRef.value) {
+    listRef.value.scrollTop = 0;
   }
 }
 
@@ -957,6 +976,19 @@ async function markAllVisibleAsRead(): Promise<void> {
     />
 
     <div ref="listRef" class="flex-1 overflow-y-scroll article-list-scroll" @scroll="handleScroll">
+      <!-- New articles banner: shown when a background refresh found new
+           articles while the user was reading. Clicking it loads them. -->
+      <Transition name="new-articles-fade">
+        <button
+          v-if="store.pendingListRefresh && store.newArticlesCount > 0"
+          class="new-articles-banner"
+          @click="loadNewArticles"
+        >
+          <PhArrowUp :size="15" weight="bold" />
+          <span>{{ t('article.action.newArticles', { count: store.newArticlesCount }) }}</span>
+        </button>
+      </Transition>
+
       <div
         v-if="
           filteredArticles.length === 0 && !store.isLoading && !isFilterLoading && !isAISearchActive
@@ -1167,5 +1199,55 @@ async function markAllVisibleAsRead(): Promise<void> {
   /* Enable GPU acceleration during hover */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
+}
+
+/* "N new articles" banner: floats at the top of the list, sticky so it stays
+   visible while the user scrolls the first screen. */
+.new-articles-banner {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px auto;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 9999px;
+  background-color: var(--accent-color);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease;
+  /* Center horizontally within the scroll container */
+  left: 0;
+  right: 0;
+  width: fit-content;
+}
+
+.new-articles-banner:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.new-articles-banner:active {
+  transform: translateY(0);
+}
+
+.new-articles-fade-enter-active,
+.new-articles-fade-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.new-articles-fade-enter-from,
+.new-articles-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>
