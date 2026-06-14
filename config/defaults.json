@@ -61,6 +61,8 @@
   "microsoft_api_key": "",
   "microsoft_endpoint": "",
   "microsoft_region": "",
+  "mtran_endpoint": "",
+  "mtran_token": "",
   "network_bandwidth_mbps": "0",
   "network_latency_ms": "0",
   "network_speed": "medium",

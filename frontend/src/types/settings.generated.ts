@@ -67,6 +67,8 @@ export interface SettingsData {
   microsoft_api_key: string;
   microsoft_endpoint: string;
   microsoft_region: string;
+  mtran_endpoint: string;
+  mtran_token: string;
   network_bandwidth_mbps: string;
   network_latency_ms: string;
   network_speed: string;

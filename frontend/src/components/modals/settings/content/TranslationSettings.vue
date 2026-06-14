@@ -165,12 +165,44 @@ async function clearTranslationCache() {
             { value: 'baidu', label: t('setting.content.baiduTranslate') },
             { value: 'microsoft', label: t('setting.content.microsoftTranslate') },
             { value: 'tencent', label: t('setting.content.tencentTranslate') },
+            { value: 'mtran', label: t('setting.content.mtranTranslate') },
             { value: 'ai', label: t('setting.content.aiTranslation') },
             { value: 'custom', label: t('setting.translation.custom.title') },
           ]"
           :searchable="true"
           width="w-32 sm:w-48"
           @update:model-value="updateSetting('translation_provider', $event)"
+        />
+      </SubSettingItem>
+
+      <!-- MTranServer Endpoint -->
+      <SubSettingItem
+        v-if="settings.translation_provider === 'mtran'"
+        :icon="PhLink"
+        :title="t('setting.content.mtranEndpoint')"
+        :description="t('setting.content.mtranEndpointDesc')"
+        :required="!settings.mtran_endpoint?.trim()"
+      >
+        <InputControl
+          :model-value="settings.mtran_endpoint"
+          type="text"
+          placeholder="http://192.168.1.100:8989"
+          @update:model-value="updateSetting('mtran_endpoint', $event)"
+        />
+      </SubSettingItem>
+
+      <!-- MTranServer Token (optional) -->
+      <SubSettingItem
+        v-if="settings.translation_provider === 'mtran'"
+        :icon="PhKey"
+        :title="t('setting.content.mtranToken')"
+        :description="t('setting.content.mtranTokenDesc')"
+      >
+        <InputControl
+          :model-value="settings.mtran_token"
+          type="password"
+          :placeholder="t('setting.content.mtranTokenPlaceholder')"
+          @update:model-value="updateSetting('mtran_token', $event)"
         />
       </SubSettingItem>
 

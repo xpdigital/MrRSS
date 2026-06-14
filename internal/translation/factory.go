@@ -105,6 +105,13 @@ func (f *Factory) Create(providerType ProviderType) (Provider, error) {
 		}
 		return f.createTencentProvider(tencentConfig), nil
 
+	case ProviderMTran:
+		mtranConfig, err := f.loadMTranConfig()
+		if err != nil {
+			return nil, err
+		}
+		return f.createMTranProvider(mtranConfig), nil
+
 	default:
 		// 默认返回 Google 提供商
 		return f.createGoogleProvider(ProviderConfig{}), nil
@@ -116,6 +123,25 @@ func (f *Factory) createGoogleProvider(config ProviderConfig) Provider {
 	return &googleProvider{
 		translator: NewGoogleFreeTranslator(),
 	}
+}
+
+// loadMTranConfig 从设置加载 MTranServer 配置
+func (f *Factory) loadMTranConfig() (*mtranConfig, error) {
+	endpoint, _ := f.settingsProvider.GetSetting("mtran_endpoint")
+	if endpoint == "" {
+		return nil, fmt.Errorf("MTranServer endpoint is required")
+	}
+	token, _ := f.settingsProvider.GetSetting("mtran_token")
+	return &mtranConfig{
+		Endpoint: endpoint,
+		Token:    token,
+	}, nil
+}
+
+// createMTranProvider 创建 MTranServer 翻译提供商
+func (f *Factory) createMTranProvider(config *mtranConfig) Provider {
+	translator := NewMTranTranslator(config.Endpoint, config.Token)
+	return &mtranProvider{translator: translator}
 }
 
 // createDeepLProvider 创建 DeepL 翻译提供商
@@ -258,6 +284,11 @@ func (f *Factory) loadCustomConfig() (*CustomTranslatorConfig, error) {
 type deepLConfig struct {
 	APIKey   string
 	Endpoint string
+}
+
+type mtranConfig struct {
+	Endpoint string
+	Token    string
 }
 
 type baiduConfig struct {

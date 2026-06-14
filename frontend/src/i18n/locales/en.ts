@@ -652,6 +652,12 @@ const en: TranslationMessages = {
       tencentRegion: 'Region',
       tencentRegionDesc: 'Select the Tencent Cloud service region',
       tencentTranslate: 'Tencent Cloud Translate',
+      mtranTranslate: 'MTranServer (Local)',
+      mtranEndpoint: 'MTranServer Address',
+      mtranEndpointDesc: 'Address of your self-hosted MTranServer, e.g. http://192.168.1.100:8989',
+      mtranToken: 'MTranServer Token',
+      mtranTokenDesc: 'Optional API token (leave empty if MT_API_TOKEN is not set)',
+      mtranTokenPlaceholder: 'Optional',
       clearSummaryCache: 'Clear Summary Cache',
       clearSummaryCacheButton: 'Clear',
       clearSummaryCacheConfirm:

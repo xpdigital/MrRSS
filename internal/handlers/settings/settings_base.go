@@ -79,6 +79,8 @@ var AllSettings = []SettingDef{
 	{Key: "microsoft_api_key", Encrypted: true},
 	{Key: "microsoft_endpoint", Encrypted: false},
 	{Key: "microsoft_region", Encrypted: false},
+	{Key: "mtran_endpoint", Encrypted: false},
+	{Key: "mtran_token", Encrypted: true},
 	{Key: "network_bandwidth_mbps", Encrypted: false},
 	{Key: "network_latency_ms", Encrypted: false},
 	{Key: "network_speed", Encrypted: false},

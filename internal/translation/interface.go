@@ -49,6 +49,7 @@ const (
 	ProviderCustom    ProviderType = "custom"
 	ProviderMicrosoft ProviderType = "microsoft"
 	ProviderTencent   ProviderType = "tencent"
+	ProviderMTran     ProviderType = "mtran"
 )
 
 // String 返回提供商类型的字符串表示
