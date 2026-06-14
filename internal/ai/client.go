@@ -4,6 +4,7 @@ package ai
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -142,8 +143,63 @@ func (c *Client) RequestWithConfig(config RequestConfig) (ResponseResult, error)
 	return ResponseResult{}, fmt.Errorf("all API formats failed")
 }
 
-// tryFormat attempts to make a request using a specific format handler
+// maxTransientRetries is how many extra attempts a single format gets when it
+// hits a transient failure (network error, timeout, 429, or 5xx). Third-party
+// relay endpoints occasionally drop or rate-limit requests, especially when an
+// article is translated as many chunks at once; a quick retry almost always
+// succeeds. Format mismatches (wrong API shape) are NOT retried so unsupported
+// formats still fail fast.
+const maxTransientRetries = 2
+
+// transientStatusError is returned for HTTP statuses that are worth retrying.
+type transientStatusError struct {
+	status int
+	body   string
+}
+
+func (e *transientStatusError) Error() string {
+	return fmt.Sprintf("transient upstream status %d: %s", e.status, e.body)
+}
+
+// isTransient reports whether an error from a single attempt is transient and
+// therefore worth retrying with the same format handler.
+func isTransient(err error) bool {
+	if err == nil {
+		return false
+	}
+	var ts *transientStatusError
+	return errors.As(err, &ts) || strings.Contains(err.Error(), "request failed") ||
+		strings.Contains(err.Error(), "failed to read response body")
+}
+
+// tryFormat attempts a request with a specific format handler, retrying a few
+// times on transient failures with a short backoff.
 func (c *Client) tryFormat(handler FormatHandler, config RequestConfig) (ResponseResult, error) {
+	var lastErr error
+	for attempt := 0; attempt <= maxTransientRetries; attempt++ {
+		if attempt > 0 {
+			// Small linear backoff: 400ms, 800ms. Keeps the UI responsive
+			// while giving a flaky relay time to recover.
+			time.Sleep(time.Duration(attempt) * 400 * time.Millisecond)
+		}
+
+		result, err := c.tryFormatOnce(handler, config)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+
+		// Only retry transient failures; bail out immediately on a genuine
+		// format mismatch so the caller can try the next API format.
+		if !isTransient(err) {
+			break
+		}
+	}
+	return ResponseResult{}, lastErr
+}
+
+// tryFormatOnce performs a single request attempt using a specific format handler.
+func (c *Client) tryFormatOnce(handler FormatHandler, config RequestConfig) (ResponseResult, error) {
 	// Build request body
 	requestBody, err := handler.BuildRequest(config)
 	if err != nil {
@@ -167,6 +223,7 @@ func (c *Client) tryFormat(handler FormatHandler, config RequestConfig) (Respons
 	// Send request with formatted endpoint and handler
 	resp, err := c.sendRequestToEndpointWithHandler(jsonBody, formattedEndpoint, handler)
 	if err != nil {
+		// Network/timeout errors are transient
 		return ResponseResult{}, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
@@ -176,6 +233,13 @@ func (c *Client) tryFormat(handler FormatHandler, config RequestConfig) (Respons
 	if err != nil {
 		return ResponseResult{}, fmt.Errorf("failed to read response body: %w", err)
 	}
+
+	// Treat rate-limiting (429) and server errors (5xx) as transient so they
+	// get retried instead of cascading into "all API formats failed".
+	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+		return ResponseResult{}, &transientStatusError{status: resp.StatusCode, body: truncate(string(bodyBytes), 200)}
+	}
+
 	if err := handler.ValidateResponse(resp.StatusCode, bodyBytes); err != nil {
 		return ResponseResult{}, err
 	}
@@ -187,6 +251,14 @@ func (c *Client) tryFormat(handler FormatHandler, config RequestConfig) (Respons
 	}
 
 	return result, nil
+}
+
+// truncate shortens a string for safe logging.
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
 }
 
 // sendRequestToEndpointWithHandler sends the HTTP request to a specific endpoint with handler-specific headers
