@@ -17,10 +17,13 @@
 > [!NOTE]
 > **This is a modified fork** of [WCY-dt/MrRSS](https://github.com/WCY-dt/MrRSS), maintained at [xpdigital/MrRSS](https://github.com/xpdigital/MrRSS) and licensed under the same GPL-3.0 license.
 >
-> **Modifications (2026-06-04):**
+> **Modifications:**
 >
 > - ✨ **Drag images out to save**: drag any image in the article view directly to Finder / File Explorer to save it locally
 > - ✨ **Copy original link button**: one-click copy of the article's source URL from the article toolbar
+> - ✨ **Non-disruptive auto-refresh**: timer refreshes no longer reset your scroll position while reading — new items are applied when you switch away, click the "N new articles" banner, or scroll back to the top
+> - ✨ **Local translation via [MTranServer](https://github.com/xxnuo/MTranServer)**: add your self-hosted MTranServer as a translation provider for fast, unlimited, fully-offline English→Chinese translation
+> - 🔧 **AI request retries**: transient AI relay failures (timeouts, rate limits, 5xx) are retried automatically, cutting down on "summary/translation failed" errors
 > - 🐛 Fixed article ids changing on every refresh (`INSERT OR REPLACE` → upsert), which caused "no content" / summary errors until restart; cached AI summaries and translations now survive refreshes
 > - 🐛 Fixed feed-add error toasts showing raw i18n keys / empty messages; now shows the HTTP status and actual error
 > - 🐛 Friendly message instead of a raw SQL error when article content was removed by cache cleanup
