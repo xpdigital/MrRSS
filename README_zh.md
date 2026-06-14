@@ -17,6 +17,8 @@
 > [!NOTE]
 > **本仓库是 [WCY-dt/MrRSS](https://github.com/WCY-dt/MrRSS) 的修改版（fork）**，维护于 [xpdigital/MrRSS](https://github.com/xpdigital/MrRSS)，沿用相同的 GPL-3.0 协议。
 >
+> **关于维护者：** XP 并非程序员，只是一名 YouTuber（[@XiaoPengTech](https://www.youtube.com/@XiaoPengTech)），纯属编译好玩。因此请勿期待专业级的支持，issue 和 PR 可能无法及时回复。
+>
 > **修改内容：**
 >
 > - ✨ **图片拖出保存**：在文章视图中按住图片可直接拖到 Finder / 文件管理器保存到本地

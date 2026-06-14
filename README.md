@@ -17,6 +17,8 @@
 > [!NOTE]
 > **This is a modified fork** of [WCY-dt/MrRSS](https://github.com/WCY-dt/MrRSS), maintained at [xpdigital/MrRSS](https://github.com/xpdigital/MrRSS) and licensed under the same GPL-3.0 license.
 >
+> **About the maintainer:** XP is not a programmer — just a YouTuber ([@XiaoPengTech](https://www.youtube.com/@XiaoPengTech)) who builds this for fun. So please don't expect professional-grade support; issues and PRs may not get a timely response.
+>
 > **Modifications:**
 >
 > - ✨ **Drag images out to save**: drag any image in the article view directly to Finder / File Explorer to save it locally
