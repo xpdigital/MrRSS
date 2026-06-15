@@ -12,6 +12,7 @@ import {
   PhCopy,
 } from '@phosphor-icons/vue';
 import { useI18n } from 'vue-i18n';
+import { copyText } from '@/utils/clipboard';
 
 interface Props {
   summaryResult: {
@@ -113,8 +114,12 @@ async function copySummary() {
 
   isCopying.value = true;
   try {
-    await navigator.clipboard.writeText(props.summaryResult.summary);
-    window.showToast(t('common.toast.copiedToClipboard'), 'success');
+    const ok = await copyText(props.summaryResult.summary);
+    if (ok) {
+      window.showToast(t('common.toast.copiedToClipboard'), 'success');
+    } else {
+      window.showToast(t('common.errors.failedToCopy'), 'error');
+    }
   } catch (error) {
     console.error('Failed to copy summary:', error);
     window.showToast(t('common.errors.failedToCopy'), 'error');
