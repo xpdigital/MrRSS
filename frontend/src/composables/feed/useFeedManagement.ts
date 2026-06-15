@@ -19,6 +19,14 @@ export function useFeedManagement() {
         method: 'POST',
       });
 
+      // The server/web build (Docker) has no native file dialog and returns
+      // 501. Fall back to a browser file picker that uploads to
+      // /api/opml/import, so import works in the mobile/web UI too.
+      if (response.status === 501) {
+        importOPMLViaBrowser();
+        return;
+      }
+
       if (!response.ok) {
         // Handle HTTP error responses
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -49,6 +57,40 @@ export function useFeedManagement() {
   }
 
   /**
+   * Import OPML/JSON via a browser file picker (used when no native file
+   * dialog is available, i.e. the server/web build). Uploads the chosen file
+   * to /api/opml/import as multipart form data.
+   */
+  function importOPMLViaBrowser() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.opml,.xml,.json,text/xml,application/xml,application/json';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/opml/import', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || 'Import failed');
+        }
+        window.showToast(t('modal.feed.feedAddedSuccess'), 'success');
+        store.fetchFeeds();
+        store.pollProgress();
+      } catch (error) {
+        console.error('OPML browser import error:', error);
+        window.showToast(t('common.errors.addingFeed'), 'error');
+      }
+    };
+    input.click();
+  }
+
+  /**
    * Export OPML file using dialog
    */
   async function handleExportOPML() {
@@ -57,6 +99,19 @@ export function useFeedManagement() {
       const response = await fetch('/api/opml/export-dialog', {
         method: 'POST',
       });
+
+      // Server/web build has no native save dialog (501) — download the OPML
+      // through the browser instead.
+      if (response.status === 501) {
+        const a = document.createElement('a');
+        a.href = '/api/opml/export';
+        a.download = 'mrrss-feeds.opml';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.showToast(t('modal.opml.exportSuccess'), 'success');
+        return;
+      }
 
       if (!response.ok) {
         // Handle HTTP error responses
