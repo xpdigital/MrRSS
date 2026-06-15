@@ -12,56 +12,12 @@ export function useFeedManagement() {
   /**
    * Import OPML file using dialog
    */
-  async function handleImportOPML() {
-    try {
-      console.log('Starting OPML import dialog...');
-      const response = await fetch('/api/opml/import-dialog', {
-        method: 'POST',
-      });
-
-      // The server/web build (Docker) has no native file dialog and returns
-      // 501. Fall back to a browser file picker that uploads to
-      // /api/opml/import, so import works in the mobile/web UI too.
-      if (response.status === 501) {
-        importOPMLViaBrowser();
-        return;
-      }
-
-      if (!response.ok) {
-        // Handle HTTP error responses
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Import failed');
-      }
-
-      const result = await response.json();
-
-      if (result.status === 'cancelled') {
-        console.log('OPML import cancelled by user');
-        return;
-      }
-
-      if (result.status === 'success') {
-        console.log('OPML import successful:', result);
-        window.showToast(t('modal.feed.feedAddedSuccess'), 'success');
-        store.fetchFeeds();
-        // Start polling for progress as the backend is now fetching articles for imported feeds
-        store.pollProgress();
-      } else {
-        console.error('OPML import failed:', result);
-        window.showToast(t('common.errors.addingFeed'), 'error');
-      }
-    } catch (error) {
-      console.error('OPML import network error:', error);
-      window.showToast(t('common.errors.addingFeed'), 'error');
-    }
-  }
-
-  /**
-   * Import OPML/JSON via a browser file picker (used when no native file
-   * dialog is available, i.e. the server/web build). Uploads the chosen file
-   * to /api/opml/import as multipart form data.
-   */
-  function importOPMLViaBrowser() {
+  function handleImportOPML() {
+    // Open the file picker SYNCHRONOUSLY inside the user's click. Mobile
+    // browsers only allow input.click() within the user-gesture, so we must
+    // not await anything first. The chosen file is uploaded to
+    // /api/opml/import (multipart). This works in both the desktop webview and
+    // the headless server/web (Docker) build — no native file dialog needed.
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.opml,.xml,.json,text/xml,application/xml,application/json';
@@ -81,9 +37,10 @@ export function useFeedManagement() {
         }
         window.showToast(t('modal.feed.feedAddedSuccess'), 'success');
         store.fetchFeeds();
+        // Start polling for progress as the backend fetches articles for imported feeds
         store.pollProgress();
       } catch (error) {
-        console.error('OPML browser import error:', error);
+        console.error('OPML import error:', error);
         window.showToast(t('common.errors.addingFeed'), 'error');
       }
     };
@@ -93,48 +50,21 @@ export function useFeedManagement() {
   /**
    * Export OPML file using dialog
    */
-  async function handleExportOPML() {
+  function handleExportOPML() {
+    // Download the OPML directly through the browser (synchronous, within the
+    // user's click). /api/opml/export returns the OPML content. Works in both
+    // the desktop webview and the server/web (Docker) build — no native save
+    // dialog needed.
     try {
-      console.log('Starting OPML export dialog...');
-      const response = await fetch('/api/opml/export-dialog', {
-        method: 'POST',
-      });
-
-      // Server/web build has no native save dialog (501) — download the OPML
-      // through the browser instead.
-      if (response.status === 501) {
-        const a = document.createElement('a');
-        a.href = '/api/opml/export';
-        a.download = 'mrrss-feeds.opml';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.showToast(t('modal.opml.exportSuccess'), 'success');
-        return;
-      }
-
-      if (!response.ok) {
-        // Handle HTTP error responses
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Export failed');
-      }
-
-      const result = await response.json();
-
-      if (result.status === 'cancelled') {
-        console.log('OPML export cancelled by user');
-        return;
-      }
-
-      if (result.status === 'success') {
-        console.log('OPML export successful:', result);
-        window.showToast(t('modal.opml.exportSuccess'), 'success');
-      } else {
-        console.error('OPML export failed:', result);
-        window.showToast(t('common.errors.unknownError'), 'error');
-      }
+      const a = document.createElement('a');
+      a.href = '/api/opml/export';
+      a.download = 'mrrss-feeds.opml';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.showToast(t('modal.opml.exportSuccess'), 'success');
     } catch (error) {
-      console.error('OPML export network error:', error);
+      console.error('OPML export error:', error);
       window.showToast(t('common.errors.unknownError'), 'error');
     }
   }
