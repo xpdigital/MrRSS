@@ -20,7 +20,9 @@ export function useFeedManagement() {
     // the headless server/web (Docker) build — no native file dialog needed.
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.opml,.xml,.json,text/xml,application/xml,application/json';
+    // No `accept` filter on purpose: iOS doesn't recognize the .opml type and
+    // would grey it out in the Files app, making it unselectable. The backend
+    // parses by extension, so any file can be picked safely.
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
