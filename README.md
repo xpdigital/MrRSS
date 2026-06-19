@@ -33,6 +33,16 @@
 >
 > See the [commit history](https://github.com/xpdigital/MrRSS/commits/main) for full details.
 
+## 🐳 One-line Docker deploy (mobile / self-hosted)
+
+Run the headless server on a NAS or any machine with Docker, then read your feeds from any browser (phone included). Pre-built multi-arch images (amd64/arm64) are published to GitHub Container Registry:
+
+```bash
+docker run -d --name mrrss -p 1234:1234 -v mrrss-data:/app/data --restart unless-stopped ghcr.io/xpdigital/mrrss:latest
+```
+
+Then open `http://<your-server-ip>:1234`. Data is kept in the `mrrss-data` volume and survives upgrades. To pair it with the local translation feature, run [MTranServer](https://github.com/xxnuo/MTranServer) and set its address in Settings → Content → Translation.
+
 ## ✨ Features
 
 - 🌐 **Auto-Translation & Summarization**: Automatically translate article titles and content, and generate concise summaries to help you get information quickly
@@ -243,11 +253,10 @@ go build -tags server -o mrrss-server .
 ./mrrss-server
 ```
 
-Pre-built server images based on ghcr.io are also available:
+Pre-built multi-arch (amd64/arm64) server images for this fork are published to ghcr.io:
 
 ```bash
-docker run -d -p 1234:1234 ghcr.io/wcy-dt/mrrss:latest-amd64
-docker run -d -p 1234:1234 ghcr.io/wcy-dt/mrrss:latest-arm64
+docker run -d --name mrrss -p 1234:1234 -v mrrss-data:/app/data --restart unless-stopped ghcr.io/xpdigital/mrrss:latest
 ```
 
 Please refer to the [Server Mode API Documentation](docs/SERVER_MODE/swagger.json) for a complete API reference.

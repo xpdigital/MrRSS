@@ -33,6 +33,16 @@
 >
 > 完整改动见[提交历史](https://github.com/xpdigital/MrRSS/commits/main)。
 
+## 🐳 Docker 一键部署（手机 / 自部署）
+
+在群晖 NAS 或任意装了 Docker 的机器上跑无头服务端，然后用任意浏览器（含手机）阅读订阅。已发布预构建的多架构镜像（amd64/arm64）到 GitHub 镜像仓库：
+
+```bash
+docker run -d --name mrrss -p 1234:1234 -v mrrss-data:/app/data --restart unless-stopped ghcr.io/xpdigital/mrrss:latest
+```
+
+然后浏览器打开 `http://你的服务器IP:1234`。数据存在 `mrrss-data` 卷里，更新容器不丢。想配合本地翻译，自部署 [MTranServer](https://github.com/xxnuo/MTranServer) 后在 设置 → 内容 → 翻译 里填它的地址即可。
+
 ## ✨ 功能特性
 
 - 🌐 **自动翻译与摘要**: 自动翻译文章标题与正文，并生成简洁的内容摘要，助你快速获取信息
@@ -243,11 +253,10 @@ go build -tags server -o mrrss-server .
 ./mrrss-server
 ```
 
-本项目也提供了基于 ghcr.io 的预构建服务器镜像：
+本 fork 提供了预构建的多架构（amd64/arm64）服务器镜像，发布在 ghcr.io：
 
 ```bash
-docker run -d -p 1234:1234 ghcr.io/wcy-dt/mrrss:latest-amd64
-docker run -d -p 1234:1234 ghcr.io/wcy-dt/mrrss:latest-arm64
+docker run -d --name mrrss -p 1234:1234 -v mrrss-data:/app/data --restart unless-stopped ghcr.io/xpdigital/mrrss:latest
 ```
 
 请参阅[服务器模式 API 文档](docs/SERVER_MODE/swagger.json)以获取完整的 API 参考。
