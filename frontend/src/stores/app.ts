@@ -110,14 +110,15 @@ export const useAppStore = defineStore('app', () => {
   const refreshProgress = ref<RefreshProgress>({ isRunning: false });
   let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
-  // True while an automatic (timer-triggered) refresh is in progress.
-  const isAutoRefreshing = ref(false);
+  // True only while the user's explicit (manual) refresh is in progress. The
+  // default is false so that ALL non-manual refreshes defer the list update —
+  // this is the safe default that never disturbs the reader.
+  const isManualRefresh = ref(false);
 
-  // Set when an automatic refresh has fetched new data but we have deliberately
-  // NOT yet rebuilt the visible article list, to avoid disrupting the user while
-  // they read. The pending update is flushed either when the user clicks the
-  // "N new articles" banner, or when the app goes to the background (window
-  // blur / tab hidden) — see flushPendingListRefresh().
+  // Set when a refresh has fetched new data but we have deliberately NOT yet
+  // rebuilt the visible article list, to avoid disrupting the user. The pending
+  // update is flushed only when the user clicks the "N new articles" banner or
+  // scrolls back to the top — never automatically — see flushPendingListRefresh().
   const pendingListRefresh = ref(false);
 
   // Number of newly-arrived articles for the current view not yet shown in the
@@ -259,16 +260,16 @@ export const useAppStore = defineStore('app', () => {
       newArticlesCount.value = 0;
     }
 
-    // If the app is already hidden/unfocused, flush right away.
-    if (typeof document !== 'undefined' && document.hidden) {
-      flushPendingListRefresh();
-    }
+    // Note: we intentionally do NOT flush automatically (not on background, not
+    // on focus). The list is only rebuilt when the user explicitly asks for it
+    // (banner click, scroll-to-top, or the manual refresh button), so their
+    // scroll position and open article are never lost.
   }
 
-  // Rebuild the visible article list from the latest data. Called when the user
-  // clicks the "N new articles" banner, or when the app goes to the background
-  // (window blur / tab hidden). Resetting the scroll position is fine in both
-  // cases — the user has either asked for it or navigated away.
+  // Rebuild the visible article list from the latest data. Called only when the
+  // user explicitly asks for it: clicking the "N new articles" banner or
+  // scrolling back to the very top. Resetting the scroll position is expected
+  // in those cases because the user initiated it.
   function flushPendingListRefresh(): void {
     if (!pendingListRefresh.value) return;
     pendingListRefresh.value = false;
@@ -449,8 +450,14 @@ export const useAppStore = defineStore('app', () => {
     applyTheme();
   }
 
-  // Auto Refresh
-  async function refreshFeeds(): Promise<void> {
+  // Auto Refresh.
+  // isManual=true only for the explicit toolbar refresh button — that's the
+  // ONLY case where the visible list is rebuilt and scrolled to the top.
+  // Every other trigger (timer, startup, backend-detected refresh) defers the
+  // list update and instead surfaces a "N new articles" banner, so the user's
+  // scroll position and open article are never disturbed.
+  async function refreshFeeds(isManual: boolean = false): Promise<void> {
+    isManualRefresh.value = isManual;
     refreshProgress.value.isRunning = true;
     try {
       // First, trigger standard refresh
@@ -492,13 +499,13 @@ export const useAppStore = defineStore('app', () => {
 
         // Still refresh feeds and articles to get any updates from FreshRSS sync
         fetchFeeds();
-        if (isAutoRefreshing.value) {
-          // Auto refresh: defer the visible list update until the app goes to
-          // the background, so the user is not disrupted while reading.
-          scheduleBackgroundListRefresh();
-          isAutoRefreshing.value = false;
-        } else {
+        if (isManualRefresh.value) {
+          // Manual refresh: rebuild the list now (the toolbar handles scroll).
+          isManualRefresh.value = false;
           fetchArticles();
+        } else {
+          // Auto/startup/background refresh: defer; surface via the banner.
+          scheduleBackgroundListRefresh();
         }
         fetchUnreadCounts();
 
@@ -586,13 +593,13 @@ export const useAppStore = defineStore('app', () => {
         if (!data.is_running) {
           clearInterval(interval);
           fetchFeeds();
-          if (isAutoRefreshing.value) {
-            // Auto refresh: defer the visible list update until the app is in
-            // the background so the user's reading isn't interrupted.
-            scheduleBackgroundListRefresh();
-            isAutoRefreshing.value = false;
-          } else {
+          if (isManualRefresh.value) {
+            // Manual refresh: rebuild the list now (the toolbar handles scroll).
+            isManualRefresh.value = false;
             fetchArticles();
+          } else {
+            // Auto/startup/background refresh: defer; surface via the banner.
+            scheduleBackgroundListRefresh();
           }
           fetchUnreadCounts();
 
@@ -767,9 +774,8 @@ export const useAppStore = defineStore('app', () => {
     if (minutes > 0) {
       refreshInterval = setInterval(
         () => {
-          // Mark this as an automatic refresh so the list updates silently
-          // (no scroll-to-top, no list clearing).
-          isAutoRefreshing.value = true;
+          // Automatic refresh: defer the list update (no scroll reset). New
+          // articles surface via the "N new articles" banner.
           refreshFeeds();
         },
         minutes * 60 * 1000

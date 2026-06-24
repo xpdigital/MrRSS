@@ -525,7 +525,9 @@ async function refreshArticles(): Promise<void> {
   isRefreshing.value = true;
   shouldRestoreScroll.value = true; // Enable scroll restoration during refresh
 
-  await store.refreshFeeds();
+  // Manual refresh: pass true so the store rebuilds the list immediately and
+  // the toolbar's watch scrolls to the top. (Automatic refreshes defer.)
+  await store.refreshFeeds(true);
   // Note: Scrolling to top is now handled by the watch on refreshProgress.isRunning
 }
 

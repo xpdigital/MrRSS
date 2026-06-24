@@ -213,18 +213,11 @@ onMounted(async () => {
   }, 100);
 });
 
-// When the app goes to the background (window loses focus or the OS hides the
-// window), flush any article-list update that an auto-refresh deferred while
-// the user was reading. This way the list is already up to date the next time
-// the user switches back to MrRSS, without ever shifting under them mid-read.
-window.addEventListener('blur', () => {
-  store.flushPendingListRefresh();
-});
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    store.flushPendingListRefresh();
-  }
-});
+// Note: we deliberately do NOT refresh the list when the app goes to the
+// background or regains focus. Doing so reset the scroll position and lost the
+// open article when switching apps. New articles are only applied when the user
+// explicitly asks: clicking the "N new articles" banner, scrolling to the top,
+// or pressing the manual refresh button.
 
 // Listen for events from Sidebar (moved outside onMounted to ensure proper capture)
 window.addEventListener('show-add-feed', () => {
