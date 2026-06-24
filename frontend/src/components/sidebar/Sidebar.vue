@@ -298,6 +298,18 @@ function toggleActivityBar() {
   .feed-drawer-wrapper:not(.pinned).activity-bar-collapsed {
     left: 16px;
   }
+
+  /* On phones, a PINNED drawer must not take layout space — otherwise it sits
+     in-flow and squeezes the article list into a cramped sliver. Force it to
+     overlay (absolute) like the unpinned drawer; the dark backdrop lets the
+     user tap outside to dismiss it. */
+  .feed-drawer-wrapper.pinned {
+    position: absolute;
+    left: 44px;
+    top: 0;
+    bottom: 0;
+    z-index: 20;
+  }
 }
 
 /* Drawer position transition */
